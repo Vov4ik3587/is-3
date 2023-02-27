@@ -3,6 +3,7 @@ import numpy as np
 from keras.layers import Dense
 from keras.models import Sequential
 from keras.datasets import boston_housing
+import matplotlib.pyplot as plt
 
 # %% Загружаем датасет и выполняем его нормализацию
 (train_data, train_targets), (test_data, test_targets) = boston_housing.load_data()
@@ -28,21 +29,51 @@ def build_model():
     return model
 
 
+# %% Обучим модель без кросс-валидации. Далее построим графики функции ошибки и метрики
+model = build_model()
+H = model.fit(train_data, train_targets, epochs=20, batch_size=1, validation_data=(test_data, test_targets))
+results = model.evaluate(test_data, test_targets, batch_size=1)
+print(f'Without cross-validation MAE = {results[1]}')
+
+loss = H.history['loss']
+val_loss = H.history['val_loss']
+mae = H.history['mae']
+val_mae = H.history['val_mae']
+epochs = range(1, len(loss) + 1)
+
+plt.plot(epochs, loss, 'bo', label='Training MSE')
+plt.plot(epochs, val_loss, 'b', label='Validation MSE')
+plt.title('Training and validation MSE')
+plt.xlabel('Epochs')
+plt.ylabel('MSE')
+plt.legend()
+plt.show()
+
+plt.clf()
+plt.plot(epochs, mae, 'bo', label='Training MAE')
+plt.plot(epochs, val_mae, 'b', label='Validation MAE')
+plt.title('Training and validation MAE')
+plt.xlabel('Epochs')
+plt.ylabel('MAE')
+plt.legend()
+plt.show()
+
 # %% Выполняем кросс-валидацию
 k = 4
 num_val_samples = len(train_data) // k
-num_epochs = 100
+num_epochs = 20
 all_scores = []
 for i in range(k):
     print('processing fold #', i)
     val_data = train_data[i * num_val_samples: (i + 1) * num_val_samples]
     val_targets = train_targets[i * num_val_samples: (i + 1) * num_val_samples]
     partial_train_data = np.concatenate([train_data[:i * num_val_samples], train_data[(i + 1) * num_val_samples:]],
-                                        axis=0)
+    axis=0)
     partial_train_targets = np.concatenate(
-        [train_targets[:i * num_val_samples], train_targets[(i + 1) * num_val_samples:]], axis=0)
+    [train_targets[:i * num_val_samples], train_targets[(i + 1) * num_val_samples:]], axis=0)
     model = build_model()
-    model.fit(partial_train_data, partial_train_targets, epochs=num_epochs, batch_size=1, verbose=0)
-    val_mse, val_mae = model.evaluate(val_data, val_targets, verbose=0)
+    model.fit(partial_train_data, partial_train_targets, epochs=num_epochs, batch_size=1)
+    val_mse, val_mae = model.evaluate(val_data, val_targets)
     all_scores.append(val_mae)
-print(np.mean(all_scores))
+print(f'MAE = {all_scores}')
+print(f'Mean MAE = {np.mean(all_scores)}')
